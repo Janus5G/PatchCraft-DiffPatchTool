@@ -2,8 +2,9 @@
 
 **PatchCraft** er en 100% client-side webapp, der lader dig sammenligne to tekstfiler og skabe et **UNIX patch**, som kan transformere den forkerte fil til en præcis kopi af den korrekte fil – linje for linje, tegn for tegn.
 
-![Screenshot](https://via.placeholder.com/800x400?text=Diff+Preview+and+Patch+Download)  
-*(Indsæt gerne et skærmbillede af appen)*
+<p align="center">
+  <img src="Patchdiff.png" alt="Skærmbillede af PatchCraft i aktion" width="850">
+</p>
 
 ## ✨ Funktioner
 - Sammenlign to filer af enhver tekstbaseret type (`.py`, `.txt`, `.md`, `.nfo`, `.json`, `.js`, `.html`, `.css`, `.c`, `.cpp`, `.sh`, `.bat`, `.ps1`, `.rs`, `.go`, `.rb`, `.php`, `.java`, `.kt`, `.swift`, `.sql`, `.lua`, `.vue`, `.tex`, `.csv`, `.xml`, `.yaml`, `.ini` …)
