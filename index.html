@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Diff & Patch Studio | Sammenlign filer og generer patch</title>
+    <!-- Diff library (Myers diff, unified patch generation) -->
+    <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, 'Roboto', monospace;
+            background: #f1f5f9;
+            margin: 0;
+            padding: 2rem 1.5rem;
+            color: #0f172a;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 1.8rem 2rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .header h1 {
+            margin: 0 0 0.4rem 0;
+            font-weight: 600;
+            font-size: 1.9rem;
+            letter-spacing: -0.3px;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.85;
+            font-size: 1rem;
+        }
+
+        .badge {
+            background: #2dd4bf20;
+            display: inline-block;
+            border-radius: 40px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-top: 0.7rem;
+            border: 1px solid #2dd4bf40;
+        }
+
+        .file-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.8rem;
+            padding: 2rem 2rem 1.5rem 2rem;
+            background: #fefefe;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .file-card {
+            flex: 1;
+            min-width: 240px;
+            background: #f8fafc;
+            border-radius: 1.5rem;
+            padding: 1.2rem 1.5rem;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .file-card h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .file-card .file-label {
+            font-weight: 500;
+            font-size: 0.8rem;
+            color: #334155;
+            margin-bottom: 0.4rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            margin: 0.8rem 0;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 0.6rem 0.4rem;
+            font-size: 0.85rem;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        input[type="file"]:hover {
+            border-color: #3b82f6;
+            background: #f1f5f9;
+        }
+
+        .file-info {
+            font-size: 0.75rem;
+            color: #475569;
+            margin-top: 0.5rem;
+            word-break: break-all;
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .action-bar {
+            padding: 0.5rem 2rem 1.8rem 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            background: white;
+        }
+
+        .btn {
+            border: none;
+            background: #1e293b;
+            color: white;
+            font-weight: 600;
+            padding: 0.7rem 1.8rem;
+            border-radius: 2rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .btn-primary {
+            background: #2563eb;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: #334155;
+        }
+        .btn-secondary:hover {
+            background: #1e293b;
+        }
+        .btn-success {
+            background: #0f3b2c;
+            background: #0f766e;
+        }
+        .btn-success:hover {
+            background: #0d5c56;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .diff-header {
+            padding: 1rem 2rem 0 2rem;
+            font-weight: 600;
+            font-size: 1rem;
+            border-top: 1px solid #e2e8f0;
+            background: #f9fafb;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+        }
+
+        .diff-container {
+            padding: 0 2rem 2rem 2rem;
+            background: #0f172a;
+        }
+
+        .diff-pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 1.25rem;
+            padding: 1.2rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 0;
+            border: 1px solid #334155;
+            max-height: 550px;
+            overflow-y: auto;
+        }
+
+        .diff-pre .diff-add {
+            background-color: #14532d;
+            color: #bbf7d0;
+            display: inline-block;
+            width: 100%;
+        }
+        .diff-pre .diff-remove {
+            background-color: #7f1a1a;
+            color: #fecaca;
+            display: inline-block;
+            width: 100%;
+        }
+        .diff-pre .diff-header-line {
+            color: #7dd3fc;
+            font-weight: 600;
+        }
+        .info-message {
+            background: #eef2ff;
+            padding: 1rem;
+            border-radius: 1rem;
+            margin-top: 0.8rem;
+            font-size: 0.85rem;
+            color: #1e3a8a;
+            border-left: 5px solid #2563eb;
+        }
+
+        footer {
+            padding: 1rem 2rem;
+            font-size: 0.7rem;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #475569;
+        }
+
+        @media (max-width: 700px) {
+            body { padding: 1rem; }
+            .file-panel { flex-direction: column; gap: 1rem; }
+            .btn { width: 100%; justify-content: center; }
+            .action-bar { flex-direction: column; align-items: stretch; }
+        }
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .status-badge {
+            font-size: 0.7rem;
+            background: #e2e8f0;
+            border-radius: 30px;
+            padding: 0.2rem 0.7rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📄 Diff · Patch Forge</h1>
+        <p>Sammenlign to filer – generér ét patch, der gør den <strong>forkerte fil</strong> 100% identisk med den <strong>korrekte fil</strong> (ned til sidste bit)</p>
+        <div class="badge">⚡ Understøtter .py · .txt · .md · .nfo · .json · .js · .html · .css · .c · .cpp · og alle tekstformater</div>
+    </div>
+
+    <div class="file-panel">
+        <div class="file-card">
+            <h3>📁 FORKERT FIL <span style="font-size:0.7rem;">(skal rettes)</span></h3>
+            <div class="file-label">Vælg den fil, der indeholder fejl / er ufuldstændig</div>
+            <div class="file-input-wrapper">
+                <input type="file" id="incorrectFileInput" accept=".py,.txt,.md,.nfo,.json,.js,.html,.css,.c,.cpp,.h,.csv,.xml,.yaml,.yml,.toml,.ini,.cfg,.sh,.bat,.ps1,.rs,.go,.rb,.php,.java,.kt,.swift,.pl,.sql,.r,.lua,.vue,.svelte,.tex,.tex,.bib,text/plain,text/markdown,application/json,text/html">
+            </div>
+            <div id="incorrectFileInfo" class="file-info">Ingen fil valgt</div>
+        </div>
+        <div class="file-card">
+            <h3>✅ KORREKT FIL <span style="font-size:0.7rem;">(reference / mål)</span></h3>
+            <div class="file-label">Vælg den korrekte fil (den perfekte version)</div>
+            <div class="file-input-wrapper">
+                <input type="file" id="correctFileInput" accept=".py,.txt,.md,.nfo,.json,.js,.html,.css,.c,.cpp,.h,.csv,.xml,.yaml,.yml,.toml,.ini,.cfg,.sh,.bat,.ps1,.rs,.go,.rb,.php,.java,.kt,.swift,.pl,.sql,.r,.lua,.vue,.svelte,.tex,.bib,text/plain,text/markdown,application/json,text/html">
+            </div>
+            <div id="correctFileInfo" class="file-info">Ingen fil valgt</div>
+        </div>
+    </div>
+
+    <div class="action-bar">
+        <button class="btn btn-primary" id="compareBtn">🔍 Sammenlign & Generér patch</button>
+        <button class="btn btn-success" id="downloadPatchBtn" disabled>📥 Download patch-fil (.patch)</button>
+    </div>
+
+    <div class="diff-header">
+        <span>📜 Diff visning — unified patch preview</span>
+        <span class="status-badge" id="diffStatus">Ikke sammenlignet</span>
+    </div>
+    <div class="diff-container">
+        <pre id="diffOutput" class="diff-pre">⬅️ Vælg to filer og tryk "Sammenlign & Generér patch"</pre>
+    </div>
+    <div id="infoPanel" class="info-message" style="margin: 0 2rem 1.5rem 2rem;">
+        💡 <strong>Sådan virker det:</strong> Du vælger én <strong>forkert fil</strong> (der skal rettes) og én <strong>korrekt fil</strong>. Webapp'en genererer et unified diff/patch. 
+        Download patch-filen og brug <code style="background:#e2e8f0;padding:2px 5px;border-radius:6px;">patch -p0 &lt; fil.patch</code> (eller <code>patch -u -i fil.patch</code>) på den forkerte fil – så bliver den <strong>identisk</strong> med den korrekte. Ned til sidste linje og bit!
+    </div>
+    <footer>
+        🧩 Understøtter alle tekstbaserede filer (.py, .txt, .md, .nfo, .json, .js, .c, .html, .sh ...) | Genererer standard unified diff | 100% client-side (filer forlader aldrig din enhed)
+    </footer>
+</div>
+
+<script>
+    // DOM elements
+    const incorrectInput = document.getElementById('incorrectFileInput');
+    const correctInput = document.getElementById('correctFileInput');
+    const incorrectInfo = document.getElementById('incorrectFileInfo');
+    const correctInfo = document.getElementById('correctFileInfo');
+    const compareBtn = document.getElementById('compareBtn');
+    const downloadBtn = document.getElementById('downloadPatchBtn');
+    const diffOutputPre = document.getElementById('diffOutput');
+    const diffStatusSpan = document.getElementById('diffStatus');
+
+    // stored data for patch & filenames
+    let currentPatchContent = null;      // patch string (unified diff)
+    let currentIncorrectName = null;
+    let currentCorrectName = null;
+    let currentIncorrectText = null;
+    let currentCorrectText = null;
+
+    // Helper: display file info
+    function updateFileInfo(inputElement, infoElement) {
+        if (inputElement.files && inputElement.files.length > 0) {
+            const file = inputElement.files[0];
+            const sizeKB = (file.size / 1024).toFixed(1);
+            const ext = file.name.split('.').pop() || 'fil';
+            infoElement.innerHTML = `📄 ${file.name}  ·  ${sizeKB} KB  ·  .${ext}`;
+            if (file.size > 10 * 1024 * 1024) {
+                infoElement.innerHTML += `  ⚠️ Stor fil (>10MB) kan påvirke ydeevne`;
+            }
+        } else {
+            infoElement.innerHTML = 'Ingen fil valgt';
+        }
+    }
+
+    incorrectInput.addEventListener('change', () => updateFileInfo(incorrectInput, incorrectInfo));
+    correctInput.addEventListener('change', () => updateFileInfo(correctInput, correctInfo));
+
+    // read file as text (UTF-8)
+    function readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            if (!file) reject(new Error('Ingen fil valgt'));
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(new Error(`Kunne ikke læse fil: ${file.name}`));
+            reader.readAsText(file, 'UTF-8');
+        });
+    }
+
+    // syntax color for unified diff lines (simple but effective)
+    function colorizeUnifiedDiff(diffText) {
+        if (!diffText || diffText.trim() === '') return '<span style="color:#94a3b8;">⚠️ Ingen forskelle fundet (filer er identiske)</span>';
+        const lines = diffText.split('\n');
+        let coloredHtml = '';
+        for (let line of lines) {
+            if (line.startsWith('+') && !line.startsWith('+++')) {
+                coloredHtml += `<span class="diff-add">${escapeHtml(line)}</span>\n`;
+            } else if (line.startsWith('-') && !line.startsWith('---')) {
+                coloredHtml += `<span class="diff-remove">${escapeHtml(line)}</span>\n`;
+            } else if (line.startsWith('@@')) {
+                coloredHtml += `<span class="diff-header-line" style="color:#7dd3fc;">${escapeHtml(line)}</span>\n`;
+            } else if (line.startsWith('+++') || line.startsWith('---')) {
+                coloredHtml += `<span style="color:#c084fc;">${escapeHtml(line)}</span>\n`;
+            } else {
+                coloredHtml += `<span style="color:#cbd5e1;">${escapeHtml(line)}</span>\n`;
+            }
+        }
+        return coloredHtml;
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c;
+        });
+    }
+
+    // Generer patch ved hjælp af Diff.createPatch (unified diff)
+    function generatePatch(incorrectText, correctText, incorrectFileName, correctFileName) {
+        if (incorrectText === correctText) {
+            return null; // identisk, ingen patch nødvendig
+        }
+        // Brug createPatch fra Diff bibliotek (tilgængeligt globalt)
+        // Parametre: (fileName, oldStr, newStr, oldHeader, newHeader)
+        // Vi bruger originale filnavne så patch'en er mere brugervenlig
+        const patch = Diff.createPatch(
+            incorrectFileName,      // navn på gammel fil (den forkerte)
+            incorrectText,
+            correctText,
+            `Original (${incorrectFileName})`,
+            `Korrekt (${correctFileName})`
+        );
+        return patch;
+    }
+
+    // Hovedfunktion: sammenlign og generér patch
+    async function compareAndGenerate() {
+        // resets
+        currentPatchContent = null;
+        downloadBtn.disabled = true;
+        diffStatusSpan.textContent = "Behandler...";
+        diffOutputPre.innerHTML = '<span class="spinner" style="margin-right:6px;"></span> Genererer diff & patch...';
+
+        const incorrectFile = incorrectInput.files[0];
+        const correctFile = correctInput.files[0];
+
+        if (!incorrectFile || !correctFile) {
+            diffOutputPre.innerHTML = '<span style="color:#f87171;">❌ Fejl: Vælg BÅDE en forkert fil OG en korrekt fil.</span>';
+            diffStatusSpan.textContent = "Manglende filer";
+            return;
+        }
+
+        // check store filnavne
+        currentIncorrectName = incorrectFile.name;
+        currentCorrectName = correctFile.name;
+
+        try {
+            // Læs begge filer som tekst (UTF-8)
+            const [incorrectText, correctText] = await Promise.all([
+                readFileAsText(incorrectFile),
+                readFileAsText(correctFile)
+            ]);
+            currentIncorrectText = incorrectText;
+            currentCorrectText = correctText;
+
+            // Tjek om filerne er identiske
+            if (incorrectText === correctText) {
+                diffOutputPre.innerHTML = `
+                    <div style="background:#0f172a; padding:0.5rem;">
+                        ✅ <strong style="color:#86efac;">Filerne er 100% identiske</strong> — ingen patch nødvendig.<br>
+                        <span style="color:#94a3b8;">Den forkerte fil matcher allerede den korrekte fil ned til sidste tegn.</span>
+                    </div>`;
+                diffStatusSpan.textContent = "Identiske filer";
+                currentPatchContent = null;
+                downloadBtn.disabled = true;
+                return;
+            }
+
+            // Generér unified patch
+            const patch = generatePatch(incorrectText, correctText, currentIncorrectName, currentCorrectName);
+            if (!patch || patch.trim() === '' || patch.includes('No differences')) {
+                // Sikkerhed: burde ikke ske fordi vi allerede tjekker identisk, men hvis alligevel
+                diffOutputPre.innerHTML = '<span style="color:#facc15;">⚠️ Kunne ikke generere et meningsfuldt patch (måske tom diff?)</span>';
+                diffStatusSpan.textContent = "Ingen ændringer";
+                currentPatchContent = null;
+                downloadBtn.disabled = true;
+                return;
+            }
+
+            currentPatchContent = patch;
+            // farvelæg patch preview
+            const coloredPatch = colorizeUnifiedDiff(patch);
+            diffOutputPre.innerHTML = coloredPatch;
+            diffStatusSpan.textContent = "Patch klar ✅";
+            downloadBtn.disabled = false;
+
+            // Vis ekstra info om patch størrelse
+            const patchLines = patch.split('\n').length;
+            const infoDiv = document.getElementById('infoPanel');
+            // opdater info med ekstra notifikation (men bevar eksisterende style)
+            if (infoDiv) {
+                const extraMsg = ` 🧩 Patch genereret (${patchLines} linjer) — download og brug på "${currentIncorrectName}" for at matche "${currentCorrectName}" præcist.`;
+                if (!infoDiv.innerHTML.includes('🧩 Patch genereret')) {
+                    infoDiv.innerHTML = infoDiv.innerHTML.replace(/💡 <strong>Sådan virker det:<\/strong>.*?præcist!/, match => match + extraMsg);
+                    if (!infoDiv.innerHTML.includes(extraMsg)) infoDiv.innerHTML += `<div style="margin-top:8px;background:#e6f7f0;padding:6px 12px;border-radius:12px;">🧩 ${extraMsg}</div>`;
+                }
+            }
+
+        } catch (err) {
+            console.error(err);
+            let errorMsg = err.message || "Kunne ikke læse eller behandle filer.";
+            if (err.name === "EncodingError") errorMsg = "Kodningsfejl: filen er ikke gyldig UTF-8 tekst. Prøv med ren tekstfil.";
+            diffOutputPre.innerHTML = `<span style="color:#f87171;">❌ Fejl: ${escapeHtml(errorMsg)}</span>`;
+            diffStatusSpan.textContent = "Fejl ved læsning";
+            downloadBtn.disabled = true;
+            currentPatchContent = null;
+        }
+    }
+
+    // Download patch-fil som .patch eller .diff
+    function downloadPatch() {
+        if (!currentPatchContent) {
+            alert("Ingen patch tilgængelig. Sammenlign først to filer med forskelle.");
+            return;
+        }
+        if (currentPatchContent.trim() === "") {
+            alert("Patch er tom, ingen forskelle at gemme.");
+            return;
+        }
+        // Brug meningsfuldt filnavn: base fra forkert fil + .patch
+        let baseName = currentIncorrectName ? currentIncorrectName.replace(/\.[^/.]+$/, '') : 'patch';
+        const patchFileName = `${baseName}_to_correct.patch`;
+        const blob = new Blob([currentPatchContent], { type: 'text/x-patch;charset=utf-8' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.href = url;
+        link.download = patchFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        // Vis kort notifikation i diff container
+        const noteSpan = document.createElement('div');
+        noteSpan.style.marginTop = '0.75rem';
+        noteSpan.style.fontSize = '0.75rem';
+        noteSpan.style.color = '#a5f3fc';
+        noteSpan.style.background = '#1e293b';
+        noteSpan.style.padding = '0.3rem 0.8rem';
+        noteSpan.style.borderRadius = '2rem';
+        noteSpan.style.display = 'inline-block';
+        noteSpan.innerHTML = `✅ Patch gemt som "${patchFileName}" — anvend med: patch -p0 < ${patchFileName}`;
+        const existingNote = document.querySelector('.patch-download-note');
+        if(existingNote) existingNote.remove();
+        const containerDiv = document.querySelector('.diff-container');
+        const newNote = document.createElement('div');
+        newNote.className = 'patch-download-note';
+        newNote.style.marginTop = '12px';
+        newNote.innerHTML = noteSpan.innerHTML;
+        containerDiv.appendChild(newNote);
+        setTimeout(() => { if(newNote) newNote.style.opacity = '0.6'; }, 3000);
+    }
+
+    // Tilføj ekstra vejledning: dynamisk patch kommando kopi? ikke nødvendigt men smart.
+    compareBtn.addEventListener('click', compareAndGenerate);
+    downloadBtn.addEventListener('click', downloadPatch);
+
+    // Automatisk tjek hvis man trykker enter? ingen grund.
+    // Ekstra: validering af store filer ved UI
+    function checkLargeFiles() {
+        const files = [incorrectInput.files[0], correctInput.files[0]].filter(f => f);
+        for (let f of files) {
+            if (f && f.size > 20 * 1024 * 1024) {
+                alert(`⚠️ Filen "${f.name}" er meget stor (${(f.size/1048576).toFixed(1)} MB). Hukommelse kan blive presset. Overvej mindre filer til demo.`);
+            }
+        }
+    }
+
+    // Lyt til filvalg for ekstra advarsel
+    incorrectInput.addEventListener('change', checkLargeFiles);
+    correctInput.addEventListener('change', checkLargeFiles);
+
+    // initial forklaring opdateret mht patch anvendelse
+    const infoDiv = document.getElementById('infoPanel');
+    if(infoDiv) {
+        infoDiv.innerHTML = `💡 <strong>Sådan virker det:</strong> Vælg én <strong>forkert fil</strong> og én <strong>korrekt fil</strong>. Klik "Sammenlign". 
+        Hvis der er forskelle, genereres et standard UNIX unified patch. Download <strong>.patch</strong> filen. Anvend den på den forkerte fil med kommandoen:<br>
+        <code style="background:#e2e8f0;padding:4px 8px;border-radius:10px;display:inline-block;margin-top:5px;">patch -p0 &lt; downloadet_fil.patch</code><br>
+        ELLER hvis patch-filens sti skal matches: <code>patch -u -i fil.patch den_forkerte_fil.ext</code><br>
+        Efter patch er anvendt, vil den forkerte fil være 100% identisk med den korrekte — <strong>ned til sidste linje og tegn</strong> ✅`;
+    }
+    // gør diff container klar
+    diffOutputPre.style.whiteSpace = 'pre-wrap';
+    diffOutputPre.style.wordBreak = 'break-word';
+</script>
+</body>
+</html>
