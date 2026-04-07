@@ -33,8 +33,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📄 PatchCraft Server – Diff, patch og retteværktøj")
-st.markdown("Sammenlign to tekstfiler – generér patch, linjenumre og download et Python-script, der kan gøres til `.exe`.")
+st.title("📄 PatchCraft Server – Diff, patch og automatisk rettelse")
+st.markdown("Sammenlign to tekstfiler – generér patch, linjenumre og download færdig rette-fil (batch + prækompileret EXE).")
 
 col1, col2 = st.columns(2)
 
@@ -89,7 +89,7 @@ if st.button("🔍 Sammenlign og generér patch", type="primary"):
             html_diff.append(f'<span class="diff-header">{line}</span>')
         else:
             html_diff.append(f'<span class="diff-context">{line}</span>')
-    st.markdown(f'<div style="background:#0f172a; padding:1rem; border-radius:1rem; font-family:monospace;">{"<br>".join(html_diff)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background:#0f172a; padding:1rem; border-radius:1rem; font-family:monospace; overflow-x:auto;">{"<br>".join(html_diff)}</div>', unsafe_allow_html=True)
     
     # Generér diff rapport med linjenumre
     st.subheader("📄 Diff rapport med præcise linjenumre")
@@ -120,16 +120,35 @@ if st.button("🔍 Sammenlign og generér patch", type="primary"):
     report_text = "\n".join(report_lines)
     st.text_area("Forhåndsvisning af diff rapport", report_text, height=200)
     
-    # Generér Python-script til at anvende patchen (kan gøres til .exe)
+    # Generér batch-fil, der bruger en prækompileret patch_applier.exe
+    batch_content = f"""@echo off
+echo Anvender patch på "{incorrect_file.name}"...
+if not exist "{incorrect_file.name}" (
+    echo Fejl: Filen "{incorrect_file.name}" findes ikke i denne mappe.
+    pause
+    exit /b 1
+)
+if not exist "patch_applier.exe" (
+    echo Fejl: patch_applier.exe mangler.
+    echo Download den fra https://github.com/dit-brugernavn/PatchCraft-Server/releases
+    pause
+    exit /b 1
+)
+patch_applier.exe "patch_to_apply.patch" "{incorrect_file.name}"
+echo.
+echo Tryk en tast for at lukke...
+pause > nul
+"""
+    
+    # Generér Python-script (til dem der selv vil kompilere til EXE)
     script_content = f'''#!/usr/bin/env python3
 # Auto-genereret patch-applier fra PatchCraft Server
-# Brug: python apply_patch.py [sti_til_forkert_fil]
 import sys, os, subprocess, tempfile
 
 PATCH = r"""{patch_content}"""
 
 def main():
-    target = "{incorrect_file.name}"
+    target = r"""{incorrect_file.name}"""
     if len(sys.argv) > 1:
         target = sys.argv[1]
     if not os.path.exists(target):
@@ -155,27 +174,44 @@ if __name__ == '__main__':
     main()
 '''
     
-    # Download knapper
-    st.subheader("📥 Download")
-    col_a, col_b, col_c = st.columns(3)
+    # Download sektion
+    st.subheader("📥 Download retteværktøjer")
+    col_a, col_b, col_c, col_d = st.columns(4)
     with col_a:
         st.download_button(
-            label="📄 Download .patch-fil",
+            label="📄 .patch-fil",
             data=patch_content,
             file_name=f"patch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.patch",
             mime="text/x-patch"
         )
     with col_b:
         st.download_button(
-            label="📑 Download diff rapport (linjenumre)",
+            label="📑 Diff rapport (linjenumre)",
             data=report_text,
             file_name=f"diff_rapport_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain"
         )
     with col_c:
         st.download_button(
-            label="🐍 Download Python-script (kan gøres til .exe)",
+            label="⚙️ Batch-fil (brug med patch_applier.exe)",
+            data=batch_content,
+            file_name=f"apply_patch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.bat",
+            mime="text/plain"
+        )
+    with col_d:
+        st.download_button(
+            label="🐍 Python-script (kan gøres til .exe)",
             data=script_content,
             file_name=f"apply_patch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.py",
             mime="text/x-python"
         )
+    
+    st.info("💡 **For at få automatisk .exe:** Download batch-filen ovenfor **og** hent `patch_applier.exe` (prækompileret) fra [Releases](https://github.com/dit-brugernavn/PatchCraft-Server/releases). Læg begge i samme mappe som den forkerte fil, og dobbeltklik på batch-filen. **Alternativt:** Konverter Python-scriptet til .exe med `pyinstaller --onefile --noconsole filnavn.py`.")
+
+st.markdown("---")
+st.markdown("""
+**Sådan får du `patch_applier.exe` (prækompileret):**
+1. Gå til [Releases](https://github.com/dit-brugernavn/PatchCraft-Server/releases) på dit repository.
+2. Download `patch_applier.exe` (eller byg den selv med C# – se README).
+3. Placer den i samme mappe som batch-filen.
+""")
