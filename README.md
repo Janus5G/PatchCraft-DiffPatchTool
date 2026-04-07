@@ -3,7 +3,7 @@
 **PatchCraft Server** er en webbaseret app til at sammenligne to tekstfiler, generere unified diffs, rapporter med præcise linjenumre og et Python-script der kan omdannes til en selvstændig `.exe`-fil.
 
 ## 🚀 Live demo (hvis du hoster)
-[https://patchcraft-server.streamlit.app](https://patchcraft-server.streamlit.app) *(eksempel – din egen URL)*
+[https://patchcraft-server.streamlit.app](https://patchcraft-server.streamlit.app) 
 
 ## ✨ Funktioner
 - Upload to filer (alle tekstformater: `.py`, `.txt`, `.md`, `.nfo`, `.json`, `.c`, `.html`, `.sh`, m.fl.)
